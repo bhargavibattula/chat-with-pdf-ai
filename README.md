@@ -11,42 +11,48 @@ PDF-AI is a high-performance, real-time application designed to transform static
 
 ---
 
-## ✨ Why this is better than ChatGPT
-Unlike generic AI chats, this platform is **purpose-built for education**:
-- **0️⃣ No Login Required**: Start studying in 2 seconds. No emails, no passwords, no friction.
-- **👥 True Collaboration**: Generate a session link and study with friends in real-time. What you see, they see.
-- **🛡️ Private Doubt Clearing**: While chatting with friends, summon a private AI tutor that only answers to *you*.
-- **🧠 Educational Output**: GPT just talks; we **generate**. Turn your PDF into Quizzes, Flashcards, and Mind Maps instantly.
+## ⚡ Why this is Unique (The Secret Sauce)
+Most AI platforms are **lonely**. You talk to a bot, get an answer, and leave. **PDF-AI Study Hub** turns studying into a **multi-player sport**. 
+
+- **🔗 Permanent Shared URLs**: Every session has a unique hash. If you refresh, the session stays. If you share it, your friends see exactly what you see.
+- **🛡️ Secure Privacy Layer**: We built a "Dual-Chat" engine. You have a public group chat for brainstorming and a **Private AI Tutor bubble** for when you don't want to ask "stupid questions" in front of the group.
+- **⚡ Zero-Friction Entry**: No e-mails, no data tracking, no subscriptions. Just you and your knowledge.
 
 ---
 
-## 🛠️ Core Features
+## 🛰️ Detailed Feature List
 
-### 1. Collaborative Study Sessions
-- Real-time chat powered by **Socket.io**.
-- Shared context: Everyone in the session interacts with the same PDF analysis.
-- Live typing indicators and existence notifications.
+### 1. 👥 Multi-User Collaborative War-Room
+- **Real-Time Sync**: Powered by WebSockets (Socket.io), messages appear as you type.
+- **Role Isolation**: Every user gets a unique color-coded identity and avatar automatically.
+- **Joint Navigation**: Discuss specific PDF sections together in a shared virtual space.
 
-### 2. Private AI Tutor (Floating Bubble)
-- A separate, non-collaborative chatbot for personal questions.
-- Deep-dives into PDF context using **RAG (Retrieval-Augmented Generation)**.
-- Secure and isolated from the group chat.
+### 2. 🧙 Private AI Tutor (The floating brain)
+- **Context-Aware Assistance**: It doesn't just "talk"—it *understands* your document using a Vector-Based RAG engine.
+- **Privacy First**: Your private queries remain private. Assistants handle greetings, technical deep-dives, and general study tips instantly.
 
-### 3. AI Learning Suite
-- **📊 Quiz Generator**: Instantly creates MCQs and Short Questions from your document.
-- **🗂️ 3D Flashcards**: High-retention memorization cards generated automatically.
-- **🗺️ Interactive Mind Maps**: Visual hierarchy of your PDF's core concepts.
-- **📝 Smart Summary**: Get the "TL;DR" of a 50-page document in 5 bullets.
+### 3. 📝 The "Study-to-Success" AI Toolset
+- **🥇 Automated Quiz Engine**:
+  - Generates MCQ and Short Questions on the fly.
+  - Helps you self-assess without having to draft questions yourself.
+- **🧩 3D Flashcards**:
+  - Uses the "Active Recall" study principle.
+  - AI identifies the most important terms and turns them into interactive flip-cards.
+- **🗺️ Hierarchical Mind Maps**:
+  - Visualizes the entire PDF as a tree structure.
+  - Helps you understand how concepts connect, perfect for visual learners.
+- **📜 Instant Summary**:
+  - Distills hours of reading into minutes of comprehension.
+  - Automatically identifies key takeaways and core themes.
 
-### 4. Enterprise-Grade Tech
-- **Frontend**: React 19, TypeScript, Tailwind CSS, Framer Motion.
-- **Backend**: Flask with Socket.io (Threading Mode) for bi-directional communication.
-- **AI Brain**: LangChain integrated with **Groq (Llama 3.3 70B)** for lightning-fast responses.
-- **Vector Engine**: ChromaDB for high-precision document retrieval.
+### ⚙️ Deep-Tech Infrastructure
+- **Model**: Groq-powered **Llama 3.3 70B** — faster than GPT-4o.
+- **Memory**: Persistent in-memory session mapping for high-speed retrieval.
+- **Retrieval**: ChromaDB vector store isolates session data to prevent cross-contamination.
 
 ---
 
-## ⚙️ Local Setup Instructions
+## 🚀 One-Click Setup (Quick-Start)
 
 ### Prerequisites
 - Python 3.9+
