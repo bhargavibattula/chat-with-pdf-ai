@@ -1,16 +1,15 @@
 ## RAG Q&A Conversation With PDF Including Chat History
 import streamlit as st
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_chroma import Chroma
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_chroma import Chroma
 import os
 
 from dotenv import load_dotenv
@@ -74,9 +73,22 @@ if api_key:
                 ]
             )
         
-        history_aware_retriever=create_history_aware_retriever(llm,retriever,contextualize_q_prompt)
+        def format_docs(docs):
+            return "\n\n".join(doc.page_content for doc in docs)
 
-        ## Answer question
+        contextualize_q_chain = (
+            contextualize_q_prompt
+            | llm
+            | StrOutputParser()
+        )
+
+        def retrieval_logic(input_dict):
+            if input_dict.get("chat_history"):
+                standalone_question = contextualize_q_chain.invoke(input_dict)
+            else:
+                standalone_question = input_dict["input"]
+            docs = retriever.invoke(standalone_question)
+            return format_docs(docs)
 
         # Answer question
         system_prompt = (
@@ -95,12 +107,17 @@ if api_key:
                     ("human", "{input}"),
                 ]
             )
-        
-        question_answer_chain=create_stuff_documents_chain(llm,qa_prompt)
-        rag_chain=create_retrieval_chain(history_aware_retriever,question_answer_chain)
+
+        rag_chain = (
+            RunnablePassthrough.assign(context=retrieval_logic)
+            | qa_prompt
+            | llm
+            | StrOutputParser()
+        )
 
         def get_session_history(session:str)->BaseChatMessageHistory:
             if session_id not in st.session_state.store:
+                from langchain_community.chat_message_histories import ChatMessageHistory
                 st.session_state.store[session_id]=ChatMessageHistory()
             return st.session_state.store[session_id]
         
@@ -108,7 +125,6 @@ if api_key:
             rag_chain,get_session_history,
             input_messages_key="input",
             history_messages_key="chat_history",
-            output_messages_key="answer"
         )
 
         user_input = st.text_input("Your question:")
@@ -118,10 +134,10 @@ if api_key:
                 {"input": user_input},
                 config={
                     "configurable": {"session_id":session_id}
-                },  # constructs a key "abc123" in `store`.
+                },
             )
             st.write(st.session_state.store)
-            st.write("Assistant:", response['answer'])
+            st.write("Assistant:", response)
             st.write("Chat History:", session_history.messages)
 else:
     st.warning("Please enter the GRoq API Key")
