@@ -110,35 +110,16 @@ npm run dev
 
 Below are the screenshots of the PDF-AI Study Hub interface and its features.
 
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.17.06%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.17.56%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.20.38%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.57%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.41%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.13%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.15.17%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.15.41%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.18.20%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.18.40%20PM.jpeg)
-<br>
-
-![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.22.48%20PM.jpeg)
-<br>
+<div align="center">
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.17.06%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.17.56%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.20.38%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.14.57%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.14.41%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.14.13%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.15.17%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.15.41%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.18.20%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.18.40%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.22.48%20PM.jpeg" width="45%" style="border-radius:10px; margin: 5px;" />
+</div>
