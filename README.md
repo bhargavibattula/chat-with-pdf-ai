@@ -9,25 +9,6 @@
 
 PDF-AI is a high-performance, real-time application designed to transform static documents into interactive, shared learning experiences. Built for students, researchers, and professional teams who need to conquer complex material together.
 
----
-
-## 📸 Preview
-
-<div align="center">
-  <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.17.06%20PM.jpeg" width="100%" alt="Main Dashboard Preview">
-  <br>
-  <em>Experience the ultimate collaborative learning suite with real-time sync and AI-powered insights.</em>
-</div>
-
-<br>
-
-| | |
-|---|---|
-| <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.17.56%20PM.jpeg" width="100%"> | <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.20.38%20PM.jpeg" width="100%"> |
-| <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.14.57%20PM.jpeg" width="100%"> | <img src="assets/WhatsApp%20Image%202026-04-14%20at%206.14.41%20PM.jpeg" width="100%"> |
-
----
-
 ## ⚡ Why this is Unique (The Secret Sauce)
 Most AI platforms are **lonely**. You talk to a bot, get an answer, and leave. **PDF-AI Study Hub** turns studying into a **multi-player sport**. 
 
@@ -125,13 +106,39 @@ npm run dev
 
 ---
 
-## 📂 Project Screenshots
+## 📸 Preview
 
-Below are all the screenshots showcasing the features and interface of the PDF-AI Study Hub.
+Below are the screenshots of the PDF-AI Study Hub interface and its features.
 
-| | | |
-|---|---|---|
-| ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.13%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.41%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.57%20PM.jpeg) |
-| ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.15.17%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.15.41%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.17.06%20PM.jpeg) |
-| ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.17.56%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.18.20%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.18.40%20PM.jpeg) |
-| ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.20.38%20PM.jpeg) | ![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.22.48%20PM.jpeg) | |
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.17.06%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.17.56%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.20.38%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.57%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.41%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.14.13%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.15.17%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.15.41%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.18.20%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.18.40%20PM.jpeg)
+<br>
+
+![Screenshot](assets/WhatsApp%20Image%202026-04-14%20at%206.22.48%20PM.jpeg)
+<br>
