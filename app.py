@@ -210,5 +210,32 @@ def get_mindmap():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/quiz', methods=['GET'])
+def get_quiz():
+    global session_data
+    if not session_data["vectorstore"]:
+        return jsonify({"error": "No document loaded"}), 400
+
+    try:
+        llm = get_llm()
+        docs = session_data["vectorstore"].get()["documents"][:12]
+        context = "\n".join(docs)
+        
+        prompt = (
+            "Generate a comprehensive quiz from the following content. Include 5 Multiple Choice Questions (MCQs) "
+            "and 5 Short Answer Questions. Return ONLY a JSON object with this key structure: "
+            "{ 'mcqs': [{ 'question': '', 'options': ['', '', '', ''], 'answer': '' }], "
+            "'short_questions': [{ 'question': '', 'answer': '' }] }\n\n"
+            f"Content: {context}"
+        )
+        
+        response = llm.invoke(prompt)
+        content = response.content.replace('```json', '').replace('```', '').strip()
+        import json
+        quiz_data = json.loads(content)
+        return jsonify(quiz_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

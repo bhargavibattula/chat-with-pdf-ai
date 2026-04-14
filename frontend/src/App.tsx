@@ -5,6 +5,7 @@ import LoadingScreen from './components/LoadingScreen';
 import Sidebar from './components/Sidebar';
 import PDFViewer from './components/PDFViewer';
 import AIWorkspace from './components/AIWorkspace';
+import QuizModal from './components/QuizModal';
 
 export type AppState = 'landing' | 'processing' | 'main';
 
@@ -12,6 +13,7 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>('landing');
   const [fileName, setFileName] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
 
   const handleUpload = async (file: File) => {
     setFileName(file.name);
@@ -72,7 +74,7 @@ const App: React.FC = () => {
             animate={{ opacity: 1 }}
             className="flex h-screen overflow-hidden"
           >
-            <Sidebar onNewChat={handleBack} />
+            <Sidebar onNewChat={handleBack} onLaunchQuiz={() => setIsQuizOpen(true)} />
             
             <main className="flex-1 flex overflow-hidden">
               {/* Split Screen Layout */}
@@ -88,6 +90,8 @@ const App: React.FC = () => {
                 <AIWorkspace />
               </div>
             </main>
+            
+            <QuizModal isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
           </motion.div>
         )}
       </AnimatePresence>

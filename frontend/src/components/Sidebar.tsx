@@ -7,14 +7,16 @@ import {
   History, 
   Settings, 
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Trophy
 } from 'lucide-react';
 
 interface SidebarProps {
   onNewChat: () => void;
+  onLaunchQuiz: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewChat }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onLaunchQuiz }) => {
   const previousChats = [
     "Q4 Financial Report.pdf",
     "Product Specs v2.pdf",
@@ -52,6 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat }) => {
           <nav className="space-y-1">
             <SidebarItem icon={<LayoutDashboard size={18} />} text="Dashboard" />
             <SidebarItem icon={<FileText size={18} />} text="Summarizer" active />
+            <button onClick={onLaunchQuiz} className="w-full">
+              <SidebarItem icon={<Trophy size={18} className="text-yellow-500" />} text="Take Quiz" />
+            </button>
             <SidebarItem icon={<MessageSquare size={18} />} text="AI Chat" />
           </nav>
         </div>
