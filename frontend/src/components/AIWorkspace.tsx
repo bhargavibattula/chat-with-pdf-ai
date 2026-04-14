@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { FileText, MessageSquare, Brain, Layers, Sparkles } from 'lucide-react';
 import SummaryPanel from './SummaryPanel';
-import ChatPanel from './ChatPanel';
+import CollaborativeChat from './CollaborativeChat';
 import FlashcardsPanel from './FlashcardsPanel';
 import MindMapPanel from './MindMapPanel';
+import PrivateAIChat from './PrivateAIChat';
 
 type Tab = 'summary' | 'chat' | 'flashcards' | 'mindmap';
 
-const AIWorkspace: React.FC = () => {
+interface AIWorkspaceProps {
+  sessionId: string;
+}
+
+const AIWorkspace: React.FC<AIWorkspaceProps> = ({ sessionId }) => {
   const [activeTab, setActiveTab] = useState<Tab>('summary');
+  const [isPrivateChatOpen, setIsPrivateChatOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full bg-white relative">
@@ -25,7 +31,7 @@ const AIWorkspace: React.FC = () => {
             active={activeTab === 'chat'} 
             onClick={() => setActiveTab('chat')}
             icon={<MessageSquare size={16} />}
-            label="Chat"
+            label="Live Chat"
           />
           <TabButton 
             active={activeTab === 'flashcards'} 
@@ -44,27 +50,35 @@ const AIWorkspace: React.FC = () => {
         {/* Content Area */}
         <div className="flex-1 overflow-hidden relative">
           <TabContent active={activeTab === 'summary'}>
-            <SummaryPanel />
+            <SummaryPanel sessionId={sessionId} />
           </TabContent>
           <TabContent active={activeTab === 'chat'}>
-            <ChatPanel />
+            <CollaborativeChat sessionId={sessionId} />
           </TabContent>
           <TabContent active={activeTab === 'flashcards'}>
-            <FlashcardsPanel />
+            <FlashcardsPanel sessionId={sessionId} />
           </TabContent>
           <TabContent active={activeTab === 'mindmap'}>
-            <MindMapPanel />
+            <MindMapPanel sessionId={sessionId} />
           </TabContent>
         </div>
 
-        {/* AI Action Button (Floating) - Hidden when Map/Quiz is active for clarity */}
-        {(activeTab === 'summary' || activeTab === 'chat') && (
-          <div className="absolute right-6 bottom-32 pointer-events-none z-20">
-            <button className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all group">
-              <Sparkles size={24} className="group-hover:rotate-12 transition-transform" />
-            </button>
-          </div>
-        )}
+        {/* AI Action Button (Floating) - Opens Private AI Chat */}
+        <div className="absolute right-6 bottom-32 pointer-events-none z-20">
+          <button 
+            onClick={() => setIsPrivateChatOpen(true)}
+            className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all group flex items-center space-x-2"
+          >
+            <Sparkles size={24} className="group-hover:rotate-12 transition-transform" />
+            <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 whitespace-nowrap text-xs font-bold uppercase tracking-widest pl-0 group-hover:pl-2">Private AI</span>
+          </button>
+        </div>
+
+        <PrivateAIChat 
+          isOpen={isPrivateChatOpen} 
+          onClose={() => setIsPrivateChatOpen(false)} 
+          sessionId={sessionId} 
+        />
       </div>
     </div>
   );

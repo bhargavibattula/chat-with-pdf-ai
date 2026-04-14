@@ -7,7 +7,11 @@ interface Flashcard {
   answer: string;
 }
 
-const FlashcardsPanel: React.FC = () => {
+interface FlashcardsPanelProps {
+  sessionId: string;
+}
+
+const FlashcardsPanel: React.FC<FlashcardsPanelProps> = ({ sessionId }) => {
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -16,7 +20,7 @@ const FlashcardsPanel: React.FC = () => {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const response = await fetch('http://localhost:5000/flashcards');
+        const response = await fetch(`http://localhost:5000/flashcards/${sessionId}`);
         if (response.ok) {
           const data = await response.json();
           setCards(data.flashcards);
@@ -28,7 +32,7 @@ const FlashcardsPanel: React.FC = () => {
       }
     };
     fetchCards();
-  }, []);
+  }, [sessionId]);
 
   const handleNext = () => {
     setIsFlipped(false);

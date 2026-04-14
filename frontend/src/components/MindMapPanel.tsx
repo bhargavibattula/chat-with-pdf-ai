@@ -7,14 +7,18 @@ interface MindMapNode {
   children?: MindMapNode[];
 }
 
-const MindMapPanel: React.FC = () => {
+interface MindMapPanelProps {
+  sessionId: string;
+}
+
+const MindMapPanel: React.FC<MindMapPanelProps> = ({ sessionId }) => {
   const [data, setData] = useState<MindMapNode | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMindMap = async () => {
       try {
-        const response = await fetch('http://localhost:5000/mindmap');
+        const response = await fetch(`http://localhost:5000/mindmap/${sessionId}`);
         if (response.ok) {
           const mindMapData = await response.json();
           setData(mindMapData.mindmap);
@@ -26,7 +30,7 @@ const MindMapPanel: React.FC = () => {
       }
     };
     fetchMindMap();
-  }, []);
+  }, [sessionId]);
 
   if (loading) {
     return (

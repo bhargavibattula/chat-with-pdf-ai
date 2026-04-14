@@ -21,9 +21,10 @@ interface QuizData {
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
+  sessionId: string;
 }
 
-const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose }) => {
+const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, sessionId }) => {
   const [data, setData] = useState<QuizData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<'mcq' | 'result'>('mcq');
@@ -35,7 +36,7 @@ const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose }) => {
       const fetchQuiz = async () => {
         setLoading(true);
         try {
-          const response = await fetch('http://localhost:5000/quiz');
+          const response = await fetch(`http://localhost:5000/quiz/${sessionId}`);
           if (response.ok) {
             const quizData = await response.json();
             setData(quizData);
@@ -48,7 +49,7 @@ const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose }) => {
       };
       fetchQuiz();
     }
-  }, [isOpen]);
+  }, [isOpen, sessionId]);
 
   const handleOptionSelect = (index: number, option: string) => {
     setAnswers(prev => ({ ...prev, [index]: option }));

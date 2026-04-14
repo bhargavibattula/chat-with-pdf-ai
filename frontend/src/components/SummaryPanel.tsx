@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Lightbulb, Loader2 } from 'lucide-react';
 
-const SummaryPanel: React.FC = () => {
+interface SummaryPanelProps {
+  sessionId: string;
+}
+
+const SummaryPanel: React.FC<SummaryPanelProps> = ({ sessionId }) => {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        const response = await fetch('http://localhost:5000/summary');
+        const response = await fetch(`http://localhost:5000/summary/${sessionId}`);
         if (response.ok) {
           const data = await response.json();
           setSummary(data.summary);
@@ -21,7 +25,7 @@ const SummaryPanel: React.FC = () => {
     };
 
     fetchSummary();
-  }, []);
+  }, [sessionId]);
 
   if (loading) {
     return (

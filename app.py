@@ -1,49 +1,84 @@
 import os
-import tempfile
+import uuid
+import time
+import json
+import logging
 from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from dotenv import load_dotenv
 
-from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 app = Flask(__name__)
-CORS(app)
+# Enable CORS for both HTTP and SocketIO
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
-
-session_data = {
-    "vectorstore": None,
-    "current_file": None
-}
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 def get_embeddings():
-    # Free, high-quality embeddings that run locally on CPU
     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 def get_llm():
-    # Using a modern, supported Groq model
     return ChatGroq(
         groq_api_key=GROQ_API_KEY, 
         model_name="llama-3.3-70b-versatile"
     )
 
-@app.route('/upload', methods=['POST'])
-def upload_pdf():
-    global session_data
-    
-    if not GROQ_API_KEY:
-        return jsonify({"error": "GROQ_API_KEY not found in .env"}), 500
+# Memory-based session storage
+sessions = {}
 
+# Socket.io Events
+@socketio.on('join')
+def on_join(data):
+    username = data.get('username', 'Unknown')
+    room = data.get('room')
+    if room:
+        join_room(room)
+        logger.info(f"User {username} joined room {room}")
+        emit('status', {'msg': f'{username} joined the session'}, room=room)
+
+@socketio.on('leave')
+def on_leave(data):
+    username = data.get('username', 'Unknown')
+    room = data.get('room')
+    if room:
+        leave_room(room)
+        emit('status', {'msg': f'{username} left the session'}, room=room)
+
+@socketio.on('send_message')
+def handle_message(data):
+    room = data.get('room')
+    if room:
+        emit('receive_message', data, room=room)
+
+@socketio.on('typing')
+def handle_typing(data):
+    room = data.get('room')
+    if room:
+        emit('display_typing', data, room=room, include_self=False)
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     
@@ -52,190 +87,169 @@ def upload_pdf():
         return jsonify({"error": "No selected file"}), 400
 
     if file and file.filename.endswith('.pdf'):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-            file.save(temp_pdf.name)
-            temp_path = temp_pdf.name
-
         try:
-            loader = PyPDFLoader(temp_path)
-            docs = loader.load()
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-            splits = text_splitter.split_documents(docs)
+            session_id = str(uuid.uuid4())[:8].upper()
+            logger.info(f"Processing PDF for session {session_id}")
 
-            embeddings = get_embeddings()
+            loader = PyPDFLoader(filepath)
+            documents = loader.load()
+            
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            splits = text_splitter.split_documents(documents)
+            
             vectorstore = Chroma.from_documents(
                 documents=splits, 
-                embedding=embeddings,
-                persist_directory=None # In-memory
+                embedding=get_embeddings(),
+                collection_name=f"col_{session_id}"
             )
-
-            session_data["vectorstore"] = vectorstore
-            session_data["current_file"] = file.filename
-
-            os.remove(temp_path)
+            
+            sessions[session_id] = {
+                "vectorstore": vectorstore,
+                "filename": filename,
+                "created_at": time.time()
+            }
 
             return jsonify({
-                "message": "File processed successfully with Groq",
-                "filename": file.filename,
-                "chunks": len(splits)
+                "message": "Success",
+                "sessionId": session_id,
+                "filename": filename
             }), 200
 
         except Exception as e:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+            logger.error(f"Upload error: {e}")
             return jsonify({"error": str(e)}), 500
     
-    return jsonify({"error": "Invalid file type"}), 400
+    return jsonify({"error": "Invalid format"}), 400
 
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
-@app.route('/chat', methods=['POST'])
-def chat():
-    global session_data
-    
-    if not session_data["vectorstore"]:
-        return jsonify({"error": "Please upload a PDF first"}), 400
-
-    data = request.json
-    user_question = data.get("question")
-    
-    if not user_question:
-        return jsonify({"error": "No question provided"}), 400
-
-    try:
-        llm = get_llm()
-        retriever = session_data["vectorstore"].as_retriever(search_kwargs={"k": 5})
-
-        system_prompt = (
-            "You are a professional assistant. Use the provided context "
-            "from the PDF to answer the user's question. "
-            "If the answer isn't available in the context, clearly state that. "
-            "Be concise and accurate.\n\n"
-            "{context}"
-        )
-
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", "{input}"),
-        ])
-
-        # Modern LCEL RAG Chain
-        rag_chain = (
-            {"context": retriever | format_docs, "input": RunnablePassthrough()}
-            | prompt
-            | llm
-            | StrOutputParser()
-        )
-
-        response = rag_chain.invoke(user_question)
-
+@app.route('/session/<session_id>', methods=['GET'])
+def get_session(session_id):
+    if session_id in sessions:
         return jsonify({
-            "answer": response,
-            "sources": "Retrieved from document"
+            "sessionId": session_id,
+            "filename": sessions[session_id]["filename"]
         }), 200
+    return jsonify({"error": "Session not found"}), 404
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/summary', methods=['GET'])
-def get_summary():
-    global session_data
-    if not session_data["vectorstore"]:
-        return jsonify({"error": "No document loaded"}), 400
+@app.route('/chat/<session_id>', methods=['POST'])
+def chat(session_id):
+    data = request.json
+    user_message = data.get('message', '')
+    
+    if session_id not in sessions:
+        logger.error(f"Chat failed: Session {session_id} not found")
+        return jsonify({"answer": "Session expired. Please re-upload your PDF."}), 404
 
     try:
         llm = get_llm()
-        docs = session_data["vectorstore"].get()["documents"][:8]
-        context = "\n".join(docs)
-        prompt = f"Provide a concise summary of the following document content, highlighting the main purpose and key findings:\n\n{context}"
+        vectorstore = sessions[session_id]["vectorstore"]
+        
+        # Get context
+        search_results = vectorstore.as_retriever(search_kwargs={"k": 5}).invoke(user_message)
+        context = "\n\n".join(doc.page_content for doc in search_results)
+        
+        logger.info(f"Context length for {session_id}: {len(context)} characters")
+
+        prompt = f"""
+        You are a helpful AI PDF Tutor. Use the provided PDF context to answer the user's question.
+        If the user is saying hello or greeting you, respond politely.
+        If the question is not related to the PDF context but is a general query, provide a brief helpful answer.
+        
+        PDF Context:
+        {context if context else 'No specific context found.'}
+        
+        User Question: {user_message}
+        
+        Answer (do not mention 'Context' or 'PDF' unless relevant):
+        """
+        
+        response = llm.invoke(prompt)
+        answer = response.content.strip() if response.content else "I'm sorry, I couldn't generate a response."
+        
+        logger.info(f"AI Response for {session_id}: {answer[:50]}...")
+        return jsonify({"answer": answer}), 200
+    except Exception as e:
+        logger.error(f"Chat logic error: {e}")
+        return jsonify({"answer": f"System Error: {str(e)}"}), 200
+
+@app.route('/summary/<session_id>', methods=['GET'])
+def get_summary(session_id):
+    if session_id not in sessions:
+        return jsonify({"error": "Not found"}), 404
+    try:
+        llm = get_llm()
+        vectorstore = sessions[session_id]["vectorstore"]
+        docs = vectorstore.get()["documents"]
+        context = "\n".join(docs[:8])
+        prompt = f"Summarize this PDF content:\n\n{context}"
         response = llm.invoke(prompt)
         return jsonify({"summary": response.content}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/flashcards', methods=['GET'])
-def get_flashcards():
-    global session_data
-    if not session_data["vectorstore"]:
-        return jsonify({"error": "No document loaded"}), 400
+def clean_json_response(text):
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0].strip()
+    elif "```" in text:
+        content = text.split("```")
+        if len(content) >= 2:
+            text = content[1].strip()
+    return text.strip()
 
+@app.route('/flashcards/<session_id>', methods=['GET'])
+def get_flashcards(session_id):
+    if session_id not in sessions:
+        return jsonify({"error": "Not found"}), 404
     try:
         llm = get_llm()
-        docs = session_data["vectorstore"].get()["documents"][:10]
-        context = "\n".join(docs)
-        
-        prompt = (
-            "Based on the following document content, generate 6 high-quality flashcards "
-            "for studying. Return ONLY a JSON list of objects with 'question' and 'answer' keys.\n\n"
-            f"Content: {context}"
-        )
-        
+        vectorstore = sessions[session_id]["vectorstore"]
+        docs = vectorstore.get()["documents"]
+        context = "\n".join(docs[:10])
+        prompt = f"Return only a JSON list of 5 {{'question', 'answer'}} objects from this. No extra text:\n\n{context}"
         response = llm.invoke(prompt)
-        # Extract JSON if LLM adds markdown wrappers
-        content = response.content.replace('```json', '').replace('```', '').strip()
-        import json
-        cards = json.loads(content)
-        return jsonify({"flashcards": cards}), 200
+        content = clean_json_response(response.content)
+        return jsonify({"flashcards": json.loads(content)}), 200
     except Exception as e:
+        logger.error(f"Flashcard error for {session_id}: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/mindmap', methods=['GET'])
-def get_mindmap():
-    global session_data
-    if not session_data["vectorstore"]:
-        return jsonify({"error": "No document loaded"}), 400
-
+@app.route('/mindmap/<session_id>', methods=['GET'])
+def get_mindmap(session_id):
+    if session_id not in sessions:
+        return jsonify({"error": "Not found"}), 404
     try:
         llm = get_llm()
-        docs = session_data["vectorstore"].get()["documents"][:10]
-        context = "\n".join(docs)
-        
-        prompt = (
-            "Create a structured mind map of the key concepts in this document. "
-            "Return ONLY a JSON object where the root is 'name' and children are a list of objects "
-            "with 'name' and optional 'children'. Go 3 levels deep if possible.\n\n"
-            f"Content: {context}"
-        )
-        
+        vectorstore = sessions[session_id]["vectorstore"]
+        docs = vectorstore.get()["documents"]
+        context = "\n".join(docs[:10])
+        prompt = f"Return only a JSON object for a mind map (root 'name', children list) from this:\n\n{context}"
         response = llm.invoke(prompt)
-        content = response.content.replace('```json', '').replace('```', '').strip()
-        import json
-        mindmap_data = json.loads(content)
-        return jsonify({"mindmap": mindmap_data}), 200
+        content = clean_json_response(response.content)
+        return jsonify({"mindmap": json.loads(content)}), 200
     except Exception as e:
+        logger.error(f"Mindmap error for {session_id}: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/quiz', methods=['GET'])
-def get_quiz():
-    global session_data
-    if not session_data["vectorstore"]:
-        return jsonify({"error": "No document loaded"}), 400
-
+@app.route('/quiz/<session_id>', methods=['GET'])
+def get_quiz(session_id):
+    if session_id not in sessions:
+        return jsonify({"error": "Not found"}), 404
     try:
         llm = get_llm()
-        docs = session_data["vectorstore"].get()["documents"][:12]
-        context = "\n".join(docs)
-        
-        prompt = (
-            "Generate a comprehensive quiz from the following content. Include 5 Multiple Choice Questions (MCQs) "
-            "and 5 Short Answer Questions. Return ONLY a JSON object with this key structure: "
-            "{ 'mcqs': [{ 'question': '', 'options': ['', '', '', ''], 'answer': '' }], "
-            "'short_questions': [{ 'question': '', 'answer': '' }] }\n\n"
-            f"Content: {context}"
-        )
-        
+        vectorstore = sessions[session_id]["vectorstore"]
+        docs = vectorstore.get()["documents"]
+        context = "\n".join(docs[:12])
+        prompt = f"Return only a JSON quiz (mcqs list, short_questions list) from this text:\n\n{context}"
         response = llm.invoke(prompt)
-        content = response.content.replace('```json', '').replace('```', '').strip()
-        import json
-        quiz_data = json.loads(content)
-        return jsonify(quiz_data), 200
+        content = clean_json_response(response.content)
+        return jsonify(json.loads(content)), 200
     except Exception as e:
+        logger.error(f"Quiz error for {session_id}: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Use threading mode for better compatibility on Windows dev environments
+    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
