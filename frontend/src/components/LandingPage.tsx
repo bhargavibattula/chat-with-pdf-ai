@@ -74,7 +74,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUpload }) => {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </span>
               <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-                Powered by Gemini 2.0 Flash
+                Powered by Llama 3.3 • Context-aware RAG
               </span>
             </div>
             

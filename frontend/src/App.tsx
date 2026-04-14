@@ -11,20 +11,47 @@ export type AppState = 'landing' | 'processing' | 'main';
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>('landing');
   const [fileName, setFileName] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
-  const handleUpload = (file: File) => {
+  const handleUpload = async (file: File) => {
     setFileName(file.name);
+    
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPdfUrl(url);
+
     setState('processing');
     
-    // Simulate processing delay
-    setTimeout(() => {
-      setState('main');
-    }, 3000);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('http://localhost:5000/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        setState('main');
+      } else {
+        const error = await response.json();
+        alert(`Upload failed: ${error.error}`);
+        setState('landing');
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Could not connect to the backend server.");
+      setState('landing');
+    }
   };
 
   const handleBack = () => {
     setState('landing');
     setFileName(null);
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(null);
+    }
   };
 
   return (
@@ -50,7 +77,11 @@ const App: React.FC = () => {
             <main className="flex-1 flex overflow-hidden">
               {/* Split Screen Layout */}
               <div className="flex-1 overflow-hidden border-r border-gray-200 bg-white">
-                <PDFViewer fileName={fileName || 'Document.pdf'} onBack={handleBack} />
+                <PDFViewer 
+                  fileName={fileName || 'Document.pdf'} 
+                  pdfUrl={pdfUrl} 
+                  onBack={handleBack} 
+                />
               </div>
               
               <div className="w-[450px] lg:w-[500px] flex flex-col bg-gray-50 overflow-hidden">

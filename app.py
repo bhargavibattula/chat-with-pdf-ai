@@ -1,153 +1,214 @@
-## RAG Q&A Conversation With PDF Including Chat History
-import streamlit as st
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_chroma import Chroma
 import os
-
+import tempfile
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from dotenv import load_dotenv
+
+from langchain_groq import ChatGroq
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_core.prompts import ChatPromptTemplate
+
+# Load environment variables
 load_dotenv()
 
-os.environ['HF_TOKEN']=os.getenv("HF_TOKEN")
-embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+app = Flask(__name__)
+CORS(app)
 
+# Configuration
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+os.environ["GROQ_API_KEY"] = GROQ_API_KEY
 
-## set up Streamlit 
-st.title("Conversational RAG With PDF uplaods and chat history")
-st.write("Upload Pdf's and chat with their content")
+session_data = {
+    "vectorstore": None,
+    "current_file": None
+}
 
-## Input the Groq API Key
-api_key=st.text_input("Enter your Groq API key:",type="password")
+def get_embeddings():
+    # Free, high-quality embeddings that run locally on CPU
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-## Check if groq api key is provided
-if api_key:
-    llm=ChatGroq(groq_api_key=api_key,model_name="Gemma2-9b-It")
+def get_llm():
+    # Using a modern, supported Groq model
+    return ChatGroq(
+        groq_api_key=GROQ_API_KEY, 
+        model_name="llama-3.3-70b-versatile"
+    )
 
-    ## chat interface
+@app.route('/upload', methods=['POST'])
+def upload_pdf():
+    global session_data
+    
+    if not GROQ_API_KEY:
+        return jsonify({"error": "GROQ_API_KEY not found in .env"}), 500
 
-    session_id=st.text_input("Session ID",value="default_session")
-    ## statefully manage chat history
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
 
-    if 'store' not in st.session_state:
-        st.session_state.store={}
+    if file and file.filename.endswith('.pdf'):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            file.save(temp_pdf.name)
+            temp_path = temp_pdf.name
 
-    uploaded_files=st.file_uploader("Choose A PDf file",type="pdf",accept_multiple_files=True)
-    ## Process uploaded  PDF's
-    if uploaded_files:
-        documents=[]
-        for uploaded_file in uploaded_files:
-            temppdf=f"./temp.pdf"
-            with open(temppdf,"wb") as file:
-                file.write(uploaded_file.getvalue())
-                file_name=uploaded_file.name
+        try:
+            loader = PyPDFLoader(temp_path)
+            docs = loader.load()
 
-            loader=PyPDFLoader(temppdf)
-            docs=loader.load()
-            documents.extend(docs)
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+            splits = text_splitter.split_documents(docs)
 
-    # Split and create embeddings for the documents
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
-        splits = text_splitter.split_documents(documents)
-        vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
-        retriever = vectorstore.as_retriever()    
-
-        contextualize_q_system_prompt=(
-            "Given a chat history and the latest user question"
-            "which might reference context in the chat history, "
-            "formulate a standalone question which can be understood "
-            "without the chat history. Do NOT answer the question, "
-            "just reformulate it if needed and otherwise return it as is."
-        )
-        contextualize_q_prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", contextualize_q_system_prompt),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                ]
+            embeddings = get_embeddings()
+            vectorstore = Chroma.from_documents(
+                documents=splits, 
+                embedding=embeddings,
+                persist_directory=None # In-memory
             )
-        
-        def format_docs(docs):
-            return "\n\n".join(doc.page_content for doc in docs)
 
-        contextualize_q_chain = (
-            contextualize_q_prompt
-            | llm
-            | StrOutputParser()
-        )
+            session_data["vectorstore"] = vectorstore
+            session_data["current_file"] = file.filename
 
-        def retrieval_logic(input_dict):
-            if input_dict.get("chat_history"):
-                standalone_question = contextualize_q_chain.invoke(input_dict)
-            else:
-                standalone_question = input_dict["input"]
-            docs = retriever.invoke(standalone_question)
-            return format_docs(docs)
+            os.remove(temp_path)
 
-        # Answer question
+            return jsonify({
+                "message": "File processed successfully with Groq",
+                "filename": file.filename,
+                "chunks": len(splits)
+            }), 200
+
+        except Exception as e:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify({"error": str(e)}), 500
+    
+    return jsonify({"error": "Invalid file type"}), 400
+
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    global session_data
+    
+    if not session_data["vectorstore"]:
+        return jsonify({"error": "Please upload a PDF first"}), 400
+
+    data = request.json
+    user_question = data.get("question")
+    
+    if not user_question:
+        return jsonify({"error": "No question provided"}), 400
+
+    try:
+        llm = get_llm()
+        retriever = session_data["vectorstore"].as_retriever(search_kwargs={"k": 5})
+
         system_prompt = (
-                "You are an assistant for question-answering tasks. "
-                "Use the following pieces of retrieved context to answer "
-                "the question. If you don't know the answer, say that you "
-                "don't know. Use three sentences maximum and keep the "
-                "answer concise."
-                "\n\n"
-                "{context}"
-            )
-        qa_prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", system_prompt),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                ]
-            )
+            "You are a professional assistant. Use the provided context "
+            "from the PDF to answer the user's question. "
+            "If the answer isn't available in the context, clearly state that. "
+            "Be concise and accurate.\n\n"
+            "{context}"
+        )
 
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("human", "{input}"),
+        ])
+
+        # Modern LCEL RAG Chain
         rag_chain = (
-            RunnablePassthrough.assign(context=retrieval_logic)
-            | qa_prompt
+            {"context": retriever | format_docs, "input": RunnablePassthrough()}
+            | prompt
             | llm
             | StrOutputParser()
         )
 
-        def get_session_history(session:str)->BaseChatMessageHistory:
-            if session_id not in st.session_state.store:
-                from langchain_community.chat_message_histories import ChatMessageHistory
-                st.session_state.store[session_id]=ChatMessageHistory()
-            return st.session_state.store[session_id]
+        response = rag_chain.invoke(user_question)
+
+        return jsonify({
+            "answer": response,
+            "sources": "Retrieved from document"
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/summary', methods=['GET'])
+def get_summary():
+    global session_data
+    if not session_data["vectorstore"]:
+        return jsonify({"error": "No document loaded"}), 400
+
+    try:
+        llm = get_llm()
+        docs = session_data["vectorstore"].get()["documents"][:8]
+        context = "\n".join(docs)
+        prompt = f"Provide a concise summary of the following document content, highlighting the main purpose and key findings:\n\n{context}"
+        response = llm.invoke(prompt)
+        return jsonify({"summary": response.content}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/flashcards', methods=['GET'])
+def get_flashcards():
+    global session_data
+    if not session_data["vectorstore"]:
+        return jsonify({"error": "No document loaded"}), 400
+
+    try:
+        llm = get_llm()
+        docs = session_data["vectorstore"].get()["documents"][:10]
+        context = "\n".join(docs)
         
-        conversational_rag_chain=RunnableWithMessageHistory(
-            rag_chain,get_session_history,
-            input_messages_key="input",
-            history_messages_key="chat_history",
+        prompt = (
+            "Based on the following document content, generate 6 high-quality flashcards "
+            "for studying. Return ONLY a JSON list of objects with 'question' and 'answer' keys.\n\n"
+            f"Content: {context}"
         )
+        
+        response = llm.invoke(prompt)
+        # Extract JSON if LLM adds markdown wrappers
+        content = response.content.replace('```json', '').replace('```', '').strip()
+        import json
+        cards = json.loads(content)
+        return jsonify({"flashcards": cards}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        user_input = st.text_input("Your question:")
-        if user_input:
-            session_history=get_session_history(session_id)
-            response = conversational_rag_chain.invoke(
-                {"input": user_input},
-                config={
-                    "configurable": {"session_id":session_id}
-                },
-            )
-            st.write(st.session_state.store)
-            st.write("Assistant:", response)
-            st.write("Chat History:", session_history.messages)
-else:
-    st.warning("Please enter the GRoq API Key")
+@app.route('/mindmap', methods=['GET'])
+def get_mindmap():
+    global session_data
+    if not session_data["vectorstore"]:
+        return jsonify({"error": "No document loaded"}), 400
 
+    try:
+        llm = get_llm()
+        docs = session_data["vectorstore"].get()["documents"][:10]
+        context = "\n".join(docs)
+        
+        prompt = (
+            "Create a structured mind map of the key concepts in this document. "
+            "Return ONLY a JSON object where the root is 'name' and children are a list of objects "
+            "with 'name' and optional 'children'. Go 3 levels deep if possible.\n\n"
+            f"Content: {context}"
+        )
+        
+        response = llm.invoke(prompt)
+        content = response.content.replace('```json', '').replace('```', '').strip()
+        import json
+        mindmap_data = json.loads(content)
+        return jsonify({"mindmap": mindmap_data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-
-
-
-
-
-
-
-
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)

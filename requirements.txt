@@ -1,4 +1,5 @@
-streamlit
+flask
+flask-cors
 langchain
 langchain-community
 langchain-chroma

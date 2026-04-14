@@ -28,7 +28,7 @@ const ChatPanel: React.FC = () => {
     }
   }, [messages, isTyping]);
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -39,26 +39,34 @@ const ChatPanel: React.FC = () => {
     setMessages(prev => [...prev, newMessage]);
     setIsTyping(true);
 
-    // Simulate AI thinking and response
-    setTimeout(() => {
-      const responses = [
-        "Based on the document, this section discusses the importance of type-safety in modern web architecture.",
-        "The document highlights four key takeaways: scalability, developer experience, performance, and security.",
-        "That's an interesting question. On page 2, the author explains how server-side rendering reduces Time to Interactive (TTI) significanly.",
-        "I'm sorry, I couldn't find a direct mention of that in the PDF, but I can infer it based on the general context of web performance."
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: randomResponse,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
+    try {
+      const response = await fetch('http://localhost:5000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: content }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const assistantMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: data.answer,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to reach AI Backend.");
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const clearChat = () => {
